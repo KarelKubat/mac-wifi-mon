@@ -1,0 +1,96 @@
+#!/usr/bin/env perl
+
+# -----------------------------------------------------------------------------
+# mac-wifi-mon -- turn WiFi on and off on Macs when there is a network loss.
+# Usage: mac-wifi-mon  # no arguments
+# Exaple: Add to your crontab to have it check every minute:
+#  * * * * * /where/ever/you/put/it/mac-wifi-mon
+
+# -----------------------------------------------------------------------------
+# Configuration
+# LOGGER defines how to log state changes. ExamplesL
+#   $LOGGER = '/tmp/mac-wifi-mon.log'    # log to a file
+#   $LOGGER = '|logger -t mac-wifi-mon'  # log to logging facility
+my $LOGGER = '/tmp/mac-wifi-mon.log';
+
+# PINGHOST is the host to ping to see if the network is working.
+my $PINGHOST = 'www.google.com';
+
+# When VERBOSE is on, actions will be logged even when no statechange is
+# detected.
+my $VERBOSE = 0;
+
+# PAUSETIME is the nr of secs to wait between cycling the WiFi off and on
+# again to let the network register the change.
+my $PAUSETIME = 1;
+
+use strict;
+
+# Log info
+sub log_info {
+    my $of;
+    if ($LOGGER =~ m{^\|}) {
+	open($of, $LOGGER) or die("Cannot start $LOGGER: $!\n");
+    } else {
+	open($of, ">>$LOGGER") or die("Cannot append to $LOGGER: $!\n");
+	print $of (scalar(localtime()))
+    }
+    for my $s (@_) {
+	print $of (" $s");
+    }
+    print $of ("\n");
+}
+
+# Verbose messaging
+sub verbose_msg {
+    return unless ($VERBOSE);
+    log_info(@_);
+}
+
+# Main starts here.
+
+# Find the WiFi interface.
+verbose_msg("Finding WiFi interface");
+open(my $if, "networksetup -listnetworkserviceorder |")
+    or die("Cannot list network service order: $!\n");
+my $interface = undef;
+while (my $line = <$if>) {
+    chomp($line);
+    next unless ($line =~ m{Port: Wi-Fi});
+    my @parts = split(/\s/, $line);
+    $interface = $parts[$#parts];
+    $interface =~ s{\)}{};
+}
+die("Failed to determine WiFi interface\n") unless ($interface);
+verbose_msg("WiFi interface is $interface");
+
+# Check that WiFi is on, if not, someone disabled. Then don't proceed.
+open(my $if, "networksetup -getairportpower $interface |")
+    or die("Cannot determine WiFi on/off state: $!\n");
+while (my $line = <$if>) {
+    if ($line =~ m{Off}) {
+	verbose_msg("WiFi is currently off, stopping");
+	exit(0);
+    }
+}
+
+# See if the network is up. Stop if it is.
+verbose_msg("Checking whether network is up by pinging $PINGHOST");
+if (system("ping -c3 $PINGHOST >/dev/null") == 0) {
+    verbose_msg("$PINGHOST is available, stopping");
+    exit(0);
+}
+
+# WiFi is enabled, but $PINGHOST is unreachable. Cycle.
+verbose_msg("Disabling WiFi");
+system("networksetup -setairportpower $interface off")
+    and die("Failed to turn off WiFi\n");
+
+verbose_msg("Waiting $PAUSETIME seconds");
+sleep($PAUSETIME);
+
+verbose_msg("Enabling WiFi");
+system("networksetup -setairportpower $interface on")
+    and die("Failed to turn on WiFi\n");
+
+log_info("Cycled WiFi off/on");
