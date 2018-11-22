@@ -76,7 +76,7 @@ while (my $line = <$if>) {
 
 # See if the network is up. Stop if it is.
 verbose_msg("Checking whether network is up by pinging $PINGHOST");
-if (system("ping -c3 $PINGHOST >/dev/null") == 0) {
+if (system("ping -c3 $PINGHOST >/dev/null 2>&1") == 0) {
     verbose_msg("$PINGHOST is available, stopping");
     exit(0);
 }
