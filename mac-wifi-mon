@@ -22,7 +22,7 @@ my $VERBOSE = 0;
 
 # PAUSETIME is the nr of secs to wait between cycling the WiFi off and on
 # again to let the network register the change.
-my $PAUSETIME = 1;
+my $PAUSETIME = 3;
 
 use strict;
 
