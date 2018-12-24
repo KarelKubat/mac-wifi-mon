@@ -51,7 +51,7 @@ sub verbose_msg {
 
 # Find the WiFi interface.
 verbose_msg("Finding WiFi interface");
-open(my $if, "networksetup -listnetworkserviceorder |")
+open(my $if, "/usr/sbin/networksetup -listnetworkserviceorder |")
     or die("Cannot list network service order: $!\n");
 my $interface = undef;
 while (my $line = <$if>) {
@@ -65,7 +65,7 @@ die("Failed to determine WiFi interface\n") unless ($interface);
 verbose_msg("WiFi interface is $interface");
 
 # Check that WiFi is on, if not, someone disabled. Then don't proceed.
-open(my $if, "networksetup -getairportpower $interface |")
+open(my $if, "/usr/sbin/networksetup -getairportpower $interface |")
     or die("Cannot determine WiFi on/off state: $!\n");
 while (my $line = <$if>) {
     if ($line =~ m{Off}) {
@@ -83,14 +83,14 @@ if (system("ping -c3 $PINGHOST >/dev/null 2>&1") == 0) {
 
 # WiFi is enabled, but $PINGHOST is unreachable. Cycle.
 verbose_msg("Disabling WiFi");
-system("networksetup -setairportpower $interface off")
+system("/usr/sbin/networksetup -setairportpower $interface off")
     and die("Failed to turn off WiFi\n");
 
 verbose_msg("Waiting $PAUSETIME seconds");
 sleep($PAUSETIME);
 
 verbose_msg("Enabling WiFi");
-system("networksetup -setairportpower $interface on")
+system("/usr/sbin/networksetup -setairportpower $interface on")
     and die("Failed to turn on WiFi\n");
 
 log_info("Cycled WiFi off/on");
